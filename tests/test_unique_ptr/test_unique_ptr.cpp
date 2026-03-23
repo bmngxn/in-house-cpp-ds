@@ -77,14 +77,14 @@ TEST_F(UniquePtrTest, MoveAssignmentTest) {
 
 TEST_F(UniquePtrTest, ReleaseTest) {
     bmngxn::unique_ptr<Resource> ptr(new Resource(36));
-    Resource* rawPtr = ptr.release();
+    Resource* raw_ptr = ptr.release();
 
     EXPECT_EQ(ptr, nullptr);
-    EXPECT_NE(rawPtr, nullptr);
-    EXPECT_EQ(rawPtr->value_, 36);
+    EXPECT_NE(raw_ptr, nullptr);
+    EXPECT_EQ(raw_ptr->value_, 36);
     EXPECT_EQ(Resource::alive_count_, 1);
 
-    delete rawPtr; 
+    delete raw_ptr; 
 }
 
 TEST_F(UniquePtrTest, ResetUniquePtr) {
@@ -130,11 +130,11 @@ TEST_F(UniquePtrTest, OperatorBoolTest) {
 
 TEST_F(UniquePtrTest, PointerToArrayConstructionAndAccess) {
     {
-        bmngxn::unique_ptr<Resource[]> p(new Resource[3]{Resource(1), Resource(2), Resource(3)});
+        bmngxn::unique_ptr<Resource[]> ptr(new Resource[3]{Resource(1), Resource(2), Resource(3)});
 
-        EXPECT_NE(p, nullptr);
-        EXPECT_EQ(p[0].value_, 1);
-        EXPECT_EQ(p[2].value_, 3);
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(ptr[0].value_, 1);
+        EXPECT_EQ(ptr[2].value_, 3);
         EXPECT_EQ(Resource::alive_count_, 3);
     } 
     // array now goes out of scope. 
