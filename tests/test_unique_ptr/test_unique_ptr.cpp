@@ -53,7 +53,7 @@ TEST_F(UniquePtrTest, CreateAndAccessTest) {
 
 TEST_F(UniquePtrTest, MoveConstructorTest) {
     bmngxn::unique_ptr<Resource> p1(new Resource(36));
-    bmngxn::unique_ptr<Resource> p2(std::move(p1)); // call move cons
+    bmngxn::unique_ptr<Resource> p2(std::move(p1)); 
 
     EXPECT_EQ(p2->value_, 36);
     EXPECT_NE(p2, nullptr);
@@ -131,7 +131,7 @@ TEST_F(UniquePtrTest, OperatorBoolTest) {
 TEST_F(UniquePtrTest, PointerToArrayConstructionAndAccess) {
     {
         bmngxn::unique_ptr<Resource[]> p(new Resource[3]{Resource(1), Resource(2), Resource(3)});
-        
+
         EXPECT_NE(p, nullptr);
         EXPECT_EQ(p[0].value_, 1);
         EXPECT_EQ(p[2].value_, 3);
