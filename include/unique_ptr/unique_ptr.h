@@ -294,4 +294,4 @@ private:
     T* ptr_;  
 };
 
-}  // namespace bmngxn
+}
