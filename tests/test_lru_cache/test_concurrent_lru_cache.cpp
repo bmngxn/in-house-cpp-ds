@@ -40,14 +40,14 @@ TEST_F(ConcurrentLRUCacheTest, ConcurrentPutsAndGetsDoNotLoseInsertedKeys) {
     bmngxn::concurrent_lru_cache<int, int, 8> cache(128);
 
     constexpr int k_thread_count = 8;
-    constexpr int kKeysPerThread = 8;
+    constexpr int k_keys_per_thread = 8;
 
     std::vector<std::thread> threads;
     threads.reserve(k_thread_count);
 
     for (int t = 0; t < k_thread_count; t++) {
         threads.emplace_back([&cache, t]() {
-            for (int i = 0; i < kKeysPerThread; i++) {
+            for (int i = 0; i < k_keys_per_thread; i++) {
                 const int key = t * 100 + i;
                 cache.put(key, key * 10);
                 const auto value = cache.get(key);
@@ -62,7 +62,7 @@ TEST_F(ConcurrentLRUCacheTest, ConcurrentPutsAndGetsDoNotLoseInsertedKeys) {
     }
 
     for (int t = 0; t < k_thread_count; t++) {
-        for (int i = 0; i < kKeysPerThread; i++) {
+        for (int i = 0; i < k_keys_per_thread; i++) {
             const int key = t * 100 + i;
             const auto value = cache.get(key);
             ASSERT_TRUE(value.has_value());
@@ -71,7 +71,7 @@ TEST_F(ConcurrentLRUCacheTest, ConcurrentPutsAndGetsDoNotLoseInsertedKeys) {
     }
 }
 
-TEST_F(ConcurrentLRUCacheTest, ConcurrentReadsOfSameKeyAreSafe) {
+TEST_F(ConcurrentLRUCacheTest, ConcurrentReadsOfSameKey) {
     bmngxn::concurrent_lru_cache<int, int, 4> cache(32);
     cache.put(7, 77);
 

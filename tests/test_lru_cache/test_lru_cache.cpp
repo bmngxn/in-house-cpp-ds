@@ -37,7 +37,7 @@ TEST(LRUCacheTest, ExistingKeyIsUpdated) {
     EXPECT_EQ(cache.size(), 1);
 }
 
-TEST(LRUCacheTest, LeastRecentlyUsedEntryIsEvicted) {
+TEST(LRUCacheTest, LRUEntryIsEvicted) {
     bmngxn::lru_cache<int, std::string> cache(2);
 
     cache.put(1, "one");
@@ -51,7 +51,7 @@ TEST(LRUCacheTest, LeastRecentlyUsedEntryIsEvicted) {
     EXPECT_TRUE(cache.contains(3));
 }
 
-TEST(LRUCacheTest, GetPromotesEntryToMostRecentlyUsed) {
+TEST(LRUCacheTest, GetPromotesEntryToMRU) {
     bmngxn::lru_cache<int, std::string> cache(2);
 
     cache.put(1, "one");
