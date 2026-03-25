@@ -14,7 +14,7 @@ namespace bmngxn {
 template<typename Key, typename Value, std::size_t NumShards = 16>
 class concurrent_lru_cache {   
 private:
-    struct alignas(std::hardware_constructive_interference_size) Shard {
+    struct alignas(std::hardware_destructive_interference_size) Shard {
         std::mutex mutex;
         lru_cache<Key, Value> lru_cache;
 
