@@ -27,3 +27,5 @@ enable_testing()
 
 # Add your test directories
 add_subdirectory(tests/test_unique_ptr)
+add_subdirectory(tests/test_lru_cache)
+add_subdirectory(tests/test_shared_ptr)

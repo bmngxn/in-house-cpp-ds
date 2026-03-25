@@ -43,6 +43,9 @@ struct default_deleter<T[]> {
  */
 template <typename T, typename Deleter = default_deleter<T>>
 class unique_ptr : public Deleter {
+private:
+    T* ptr_;
+
 public:
     unique_ptr() noexcept 
         : Deleter()
@@ -165,14 +168,16 @@ public:
         lhs.swap(rhs);
     }
 
-private:
-    T* ptr_;
+
 };
 
 
 
 template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> : public Deleter {
+private:
+    T* ptr_;  
+
 public:
     unique_ptr() noexcept 
         : Deleter()
@@ -220,7 +225,7 @@ public:
         return *this;
     }
 
-    ~unique_ptr() {
+    ~unique_ptr() noexcept {
         if (ptr_ != nullptr) {
             get_deleter()(ptr_);
         }
@@ -289,9 +294,6 @@ public:
     friend void swap(unique_ptr& lhs, unique_ptr& rhs) noexcept {
         lhs.swap(rhs);
     }
-
-private:
-    T* ptr_;  
 };
 
 }
