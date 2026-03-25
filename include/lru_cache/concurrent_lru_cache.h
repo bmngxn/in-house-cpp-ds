@@ -23,6 +23,7 @@ private:
         {}
     };
 
+    // TODO: alternatives for unique_ptr, which currently causes ptr chaisng
     std::vector<std::unique_ptr<Shard>> shards_;
     std::hash<Key> hasher_;
 
