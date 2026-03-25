@@ -93,7 +93,7 @@ public:
     void insert(const Key& key, const Value& value) {
         resize();
 
-        std::size_t index = hash(key);
+        std::size_t index = hash(key) % capacity_;
 
         // first DELETED idx found is the priority slot to insert into compare to EMPTY
         std::optional<std::size_t> first_deleted;
