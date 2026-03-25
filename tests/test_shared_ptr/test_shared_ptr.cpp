@@ -45,7 +45,7 @@ TEST_F(SharedPtrTest, CreateAndAccessTest) {
     EXPECT_EQ(p1.get(), raw_ptr);
     EXPECT_EQ(p1->value_, 36);
     EXPECT_EQ((*p1).value_, 36);
-    EXPECT_EQ(p1.use_count(), 1U);
+    EXPECT_EQ(p1.use_count(), 1);
     EXPECT_TRUE(p1.unique());
 }
 
@@ -54,8 +54,8 @@ TEST_F(SharedPtrTest, CopyConstructorIncrementsUseCount) {
     bmngxn::shared_ptr<SharedResource> p2(p1);
 
     EXPECT_EQ(p1.get(), p2.get());
-    EXPECT_EQ(p1.use_count(), 2U);
-    EXPECT_EQ(p2.use_count(), 2U);
+    EXPECT_EQ(p1.use_count(), 2);
+    EXPECT_EQ(p2.use_count(), 2);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }
 
@@ -68,8 +68,8 @@ TEST_F(SharedPtrTest, CopyAssignmentSharesOwnership) {
     p2 = p1;
 
     EXPECT_EQ(p1.get(), p2.get());
-    EXPECT_EQ(p1.use_count(), 2U);
-    EXPECT_EQ(p2.use_count(), 2U);
+    EXPECT_EQ(p1.use_count(), 2);
+    EXPECT_EQ(p2.use_count(), 2);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }
 
@@ -80,7 +80,7 @@ TEST_F(SharedPtrTest, MoveConstructorTransfersOwnership) {
     EXPECT_EQ(p1, nullptr);
     EXPECT_NE(p2, nullptr);
     EXPECT_EQ(p2->value_, 36);
-    EXPECT_EQ(p2.use_count(), 1U);
+    EXPECT_EQ(p2.use_count(), 1);
 }
 
 TEST_F(SharedPtrTest, MoveAssignmentTransfersOwnership) {
@@ -94,7 +94,7 @@ TEST_F(SharedPtrTest, MoveAssignmentTransfersOwnership) {
     EXPECT_EQ(p1, nullptr);
     EXPECT_NE(p2, nullptr);
     EXPECT_EQ(p2->value_, 36);
-    EXPECT_EQ(p2.use_count(), 1U);
+    EXPECT_EQ(p2.use_count(), 1);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }
 
@@ -106,7 +106,7 @@ TEST_F(SharedPtrTest, ResetDecrementsUseCount) {
 
     EXPECT_EQ(p1, nullptr);
     EXPECT_NE(p2, nullptr);
-    EXPECT_EQ(p2.use_count(), 1U);
+    EXPECT_EQ(p2.use_count(), 1);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }
 
@@ -117,7 +117,7 @@ TEST_F(SharedPtrTest, ResetToNewPointerReplacesOwnership) {
 
     EXPECT_NE(ptr, nullptr);
     EXPECT_EQ(ptr->value_, 67);
-    EXPECT_EQ(ptr.use_count(), 1U);
+    EXPECT_EQ(ptr.use_count(), 1);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }
 
@@ -129,8 +129,8 @@ TEST_F(SharedPtrTest, SwapExchangesControlBlocks) {
 
     EXPECT_EQ(p1->value_, 67);
     EXPECT_EQ(p2->value_, 36);
-    EXPECT_EQ(p1.use_count(), 1U);
-    EXPECT_EQ(p2.use_count(), 1U);
+    EXPECT_EQ(p1.use_count(), 1);
+    EXPECT_EQ(p2.use_count(), 1);
 }
 
 
@@ -140,11 +140,11 @@ TEST_F(SharedPtrTest, LastOwnerDestroysResource) {
         {
             bmngxn::shared_ptr<SharedResource> p2(p1);
             EXPECT_EQ(SharedResource::alive_count_, 1);
-            EXPECT_EQ(p1.use_count(), 2U);
+            EXPECT_EQ(p1.use_count(), 2);
         }
 
         EXPECT_EQ(SharedResource::alive_count_, 1);
-        EXPECT_EQ(p1.use_count(), 1U);
+        EXPECT_EQ(p1.use_count(), 1);
     }
 
     EXPECT_EQ(SharedResource::alive_count_, 0);
@@ -159,9 +159,9 @@ TEST_F(SharedPtrTest, ConcurrentCopiesAreReferenceCountSafe) {
     std::vector<std::thread> threads;
     threads.reserve(kThreadCount);
 
-    for (int i = 0; i < kThreadCount; ++i) {
+    for (int i = 0; i < kThreadCount; i++) {
         threads.emplace_back([shared]() mutable {
-            for (int j = 0; j < kCopiesPerThread; ++j) {
+            for (int j = 0; j < kCopiesPerThread; j++) {
                 bmngxn::shared_ptr<SharedResource> local(shared);
                 EXPECT_NE(local, nullptr);
                 EXPECT_EQ(local->value_, 36);
@@ -173,6 +173,6 @@ TEST_F(SharedPtrTest, ConcurrentCopiesAreReferenceCountSafe) {
         thread.join();
     }
 
-    EXPECT_EQ(shared.use_count(), 1U);
+    EXPECT_EQ(shared.use_count(), 1);
     EXPECT_EQ(SharedResource::alive_count_, 1);
 }

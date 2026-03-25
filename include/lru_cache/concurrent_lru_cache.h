@@ -35,7 +35,7 @@ public:
     explicit concurrent_lru_cache(std::size_t total_capacity) {
         std::size_t cap_per_shard = (total_capacity + NumShards - 1) / NumShards;
         shards_.reserve(NumShards);
-        for (std::size_t i = 0; i < NumShards; ++i) {
+        for (std::size_t i = 0; i < NumShards; i++) {
             shards_.push_back(std::make_unique<Shard>(cap_per_shard));
         }
     }

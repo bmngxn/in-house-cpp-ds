@@ -15,7 +15,7 @@ TEST(LRUCacheTest, PutAndGetValue) {
 
     ASSERT_TRUE(value.has_value());
     EXPECT_EQ(*value, "one");
-    EXPECT_EQ(cache.size(), 2U);
+    EXPECT_EQ(cache.size(), 2);
 }
 
 TEST(LRUCacheTest, GetMissingKeyReturnsNullopt) {
@@ -34,7 +34,7 @@ TEST(LRUCacheTest, ExistingKeyIsUpdated) {
 
     ASSERT_TRUE(value.has_value());
     EXPECT_EQ(*value, "sus");
-    EXPECT_EQ(cache.size(), 1U);
+    EXPECT_EQ(cache.size(), 1);
 }
 
 TEST(LRUCacheTest, LeastRecentlyUsedEntryIsEvicted) {
@@ -72,7 +72,7 @@ TEST(LRUCacheTest, EraseRemovesExistingKey) {
 
     EXPECT_TRUE(cache.erase(1));
     EXPECT_FALSE(cache.contains(1));
-    EXPECT_EQ(cache.size(), 1U);
+    EXPECT_EQ(cache.size(), 1);
 }
 
 TEST(LRUCacheTest, EraseMissingKeyReturnsFalse) {
@@ -81,7 +81,7 @@ TEST(LRUCacheTest, EraseMissingKeyReturnsFalse) {
     cache.put(1, "one");
 
     EXPECT_FALSE(cache.erase(2));
-    EXPECT_EQ(cache.size(), 1U);
+    EXPECT_EQ(cache.size(), 1);
 }
 
 TEST(LRUCacheTest, ZeroCapacityCacheStoresNothing) {
@@ -89,7 +89,7 @@ TEST(LRUCacheTest, ZeroCapacityCacheStoresNothing) {
 
     cache.put(1, "one");
 
-    EXPECT_EQ(cache.size(), 0U);
+    EXPECT_EQ(cache.size(), 0);
     EXPECT_FALSE(cache.contains(1));
     EXPECT_FALSE(cache.get(1).has_value());
 }
@@ -118,8 +118,8 @@ TEST(LRUCacheTest, MoveConstructorTransfersState) {
 
     bmngxn::lru_cache<int, std::string> moved(std::move(source));
 
-    EXPECT_EQ(moved.capacity(), 2U);
+    EXPECT_EQ(moved.capacity(), 2);
     EXPECT_TRUE(moved.contains(1));
     EXPECT_TRUE(moved.contains(2));
-    EXPECT_EQ(moved.size(), 2U);
+    EXPECT_EQ(moved.size(), 2);
 }
