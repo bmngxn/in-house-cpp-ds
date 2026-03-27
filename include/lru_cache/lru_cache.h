@@ -1,50 +1,91 @@
 #pragma once
 
+#include "hash_map/hash_map.h"
+
 #include <cstddef>
-#include <list>
 #include <optional>
-#include <unordered_map>
+#include <vector>
 
 namespace bmngxn {
-/**
- * Considerations to make this thread safe:
- * 
- * - get() actually is not only a read. its also a write (::splice()),
- * so shared_mutex might not be plausible
- * 
- * - gemini suggestion: lock sharding? 
- * 
- * - future: pre-allocated std::vector replace the std::list
- * 
- */
+
 template <typename Key, typename Value>
 class lru_cache {
 private:
-    // we'll use a std::list to keep track of the LRU property:
-    // MRU at front, LRU at back. This also supports O(1)
-    // insert/delete/reorder(splice), even though the cache locality is poor
-    //
-    // unordered_map for O(1) key lookup
+    static constexpr int NULL_INDEX = -1;
+
     struct Node {
         Key key;
         Value value;
 
+        int prev = NULL_INDEX;
+        int next = NULL_INDEX;
+
+        Node() = default;
+
         Node(Key k, Value v)
-            : key(k)
-            , value(v)
+            : key(std::move(k))
+            , value(std::move(v))
         {}
     };
 
     std::size_t capacity_;
-    std::list<Node> lines_;
+    std::vector<Node> lines_;
 
-    using LineIt = typename std::list<Node>::iterator;
-    std::unordered_map<Key, LineIt> cache_;
+    hash_map<Key, int> cache_;
+
+    int head_ = NULL_INDEX;   
+    int tail_ = NULL_INDEX;     
+    int free_head_ = NULL_INDEX;
+
+    void detach(int index) {
+        int prev = lines_[index].prev;
+        int next = lines_[index].next;
+
+        if (prev != NULL_INDEX) {
+            lines_[prev].next = next;
+        } else {
+            head_ = next;
+        }
+
+        if (next != NULL_INDEX) {
+            lines_[next].prev = prev;
+        } else {
+            tail_ = prev; 
+        }
+    }
+
+    void push_front(int index) {
+        lines_[index].prev = NULL_INDEX;
+        lines_[index].next = head_;
+
+        if (head_ != NULL_INDEX) {
+            lines_[head_].prev = index;
+        }
+
+        head_ = index;
+
+        if (tail_ == NULL_INDEX) {
+            tail_ = index;
+        }
+    }
 
 public:
     explicit lru_cache(std::size_t capacity) noexcept
         : capacity_(capacity)
-    {}
+    {
+        if (capacity_ == 0) return;
+        
+        lines_.resize(capacity_);
+
+        cache_.reserve(capacity_);
+
+        for (int i = 0; i < static_cast<int>(capacity_) - 1; i++) {
+            lines_[i].next = i + 1;
+        }
+
+        lines_[capacity_ - 1].next = NULL_INDEX;
+        free_head_ = 0;
+    }
 
     ~lru_cache() noexcept = default;
 
@@ -55,38 +96,46 @@ public:
     lru_cache& operator=(lru_cache&&) noexcept = default;
 
     void put(const Key& key, const Value& value) {
-        auto it = cache_.find(key);
+        if (capacity_ == 0) return;
 
-        // if the key exists, then we update the value in it and mark it as MRU
-        if (it != cache_.end()) {
-            it->second->value = value;
-            lines_.splice(lines_.begin(), lines_, it->second);
+        int* idx_ptr = cache_.get(key);
+        
+        if (idx_ptr != nullptr) {
+            int index = *idx_ptr;
+            lines_[index].value = value;
+            detach(index);
+            push_front(index);
             return;
         }
 
-        if (capacity_ == 0) {
-            return;
+        int new_index = NULL_INDEX;
+
+        if (cache_.get_size() == capacity_) {
+            new_index = tail_;
+            cache_.erase(lines_[new_index].key);
+            detach(new_index);
+        } else {
+            new_index = free_head_;
+            free_head_ = lines_[free_head_].next;
         }
 
-        // if the cache is full, remove the lru node from both the list and map
-        if (cache_.size() == capacity_) {
-            auto& lru = lines_.back();
-            cache_.erase(lru.key);
-            lines_.pop_back();
-        }
-
-        lines_.push_front(Node{key, value});
-        cache_[key] = lines_.begin();
+        lines_[new_index].key = key;
+        lines_[new_index].value = value;
+        push_front(new_index);
+        
+    
+        cache_.insert(key, new_index);
     }
 
-    std::optional<Value> get(const Key& key) {
-        auto it = cache_.find(key);
-        if (it == cache_.end()) {
-            return std::nullopt;
-        }
+    Value* get(const Key& key) {
+        int* idx_ptr = cache_.get(key);
+        if (idx_ptr == nullptr) return nullptr;
 
-        lines_.splice(lines_.begin(), lines_, it->second);
-        return it->second->value;
+        int index = *idx_ptr;
+        detach(index);
+        push_front(index);
+        
+        return &lines_[index].value;
     }
 
     bool contains(const Key& key) const noexcept {
@@ -94,18 +143,21 @@ public:
     }
 
     bool erase(const Key& key) {
-        auto it = cache_.find(key);
-        if (it == cache_.end()) {
-            return false;
-        }
+        int* idx_ptr = cache_.get(key);
+        if (idx_ptr == nullptr) return false;
 
-        lines_.erase(it->second);
-        cache_.erase(it);
+        int index = *idx_ptr;
+        cache_.erase(key);
+        detach(index);
+
+        lines_[index].next = free_head_;
+        free_head_ = index;
+
         return true;
     }
 
     std::size_t size() const noexcept {
-        return cache_.size();
+        return cache_.get_size();
     } 
 
     std::size_t capacity() const noexcept {
@@ -113,4 +165,4 @@ public:
     }
 };
 
-}  // namespace bmngxn
+} 
