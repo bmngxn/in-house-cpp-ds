@@ -2,13 +2,16 @@
 
 #include <vector>
 #include <mutex>
+#include <limits>
+#include <optional>
+#include <stdexcept>
 
 namespace bmngxn {
 
 template <typename Key, typename Value>
 class hash_map {
 private:
-    enum class State {
+    enum class State : uint8_t {
         Empty,
         Occupied,
         Deleted,
@@ -24,7 +27,7 @@ private:
     std::size_t size_;
     std::size_t capacity_ = 16;
 
-    static constexpr npos = std::numeric_limits<std::size_t>::max();
+    static constexpr std::size_t npos = std::numeric_limits<std::size_t>::max();
 
     static constexpr double MAX_LOAD_FACTOR = 0.5;
 
@@ -39,8 +42,9 @@ private:
     }
 
     void resize_and_rehash(std::size_t new_capacity) {
-        std::vector<Entry> old_table = std::move(table_); //calls move constructor of std::vector
+        std::vector<Entry> old_table = std::move(table_);
 
+        table_.clear();
         table_.resize(new_capacity);
         size_ = 0;
         capacity_ = new_capacity;
@@ -94,22 +98,24 @@ public:
         resize();
 
         std::size_t index = hash(key) % capacity_;
-
-        // first DELETED idx found is the priority slot to insert into compare to EMPTY
-        std::optional<std::size_t> first_deleted;
+        
+        std::size_t first_deleted = npos;
 
         for (std::size_t i = 0; i < capacity_; i++) {
             std::size_t probe = (index + i) % capacity_;
             auto& entry = table_[probe];
+            
             if (entry.state == State::Occupied) {
                 if (entry.key == key) {
                     entry.value = value;
                     return;
                 }
             } else if (entry.state == State::Deleted) {
-                if (!first_deleted.has_value()) first_deleted = probe;
+                if (first_deleted == npos) {
+                    first_deleted = probe;
+                }
             } else {
-                std::size_t slot = first_deleted.value_or(probe);
+                std::size_t slot = (first_deleted != npos) ? first_deleted : probe;
                 table_[slot] = {key, value, State::Occupied};
                 size_++;
                 return;
@@ -120,27 +126,28 @@ public:
     bool erase(const Key& key) {
 
         auto index = find_index(key);
-        if (!index == npos) return false;
+        if (index == npos) return false;
 
-        table_[*index].state = State::Deleted;
+        table_[index].state = State::Deleted;
         size_--;
         return true;
     }
 
-    Value& get(const Key& key) {
-        auto index = find_index(key);
+    // change ref to ptr for inplace mod
+    Value* get(const Key& key) {
+        std::size_t index = find_index(key);
 
-        if (!index == npos) throw std::out_of_range("Key not found");
+        if (index == npos) return nullptr; 
 
-        return table_[*index].value;
+        return &table_[index].value;
     }
 
-    const Value& get(const Key& key) const {
-        auto index = find_index(key);
+    const Value* get(const Key& key) const {
+        std::size_t index = find_index(key);
 
-        if (!index == npos) throw std::out_of_range("Key not found");
+        if (index == npos) return nullptr; 
 
-        return table_[*index].value;
+        return &table_[index].value;
     }
 
     bool contains(const Key& key) const {
@@ -154,9 +161,14 @@ public:
     std::size_t get_capacity() const {
         return capacity_;
     }
+
+    void reserve(std::size_t expected_elements) {
+        std::size_t required_capacity = static_cast<std::size_t>(expected_elements / MAX_LOAD_FACTOR) + 1;
+        if (required_capacity > capacity_) {
+            resize_and_rehash(required_capacity);
+        }
+    }
     
 };
-
-
 
 }
