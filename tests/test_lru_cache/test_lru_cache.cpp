@@ -13,15 +13,15 @@ TEST(LRUCacheTest, PutAndGetValue) {
 
     const auto value = cache.get(1);
 
-    ASSERT_TRUE(value.has_value());
+    ASSERT_NE(value, nullptr);
     EXPECT_EQ(*value, "one");
     EXPECT_EQ(cache.size(), 2);
 }
 
-TEST(LRUCacheTest, GetMissingKeyReturnsNullopt) {
+TEST(LRUCacheTest, GetMissingKeyReturnsNullptr) {
     bmngxn::lru_cache<int, std::string> cache(2);
 
-    EXPECT_FALSE(cache.get(99).has_value());
+    EXPECT_EQ(cache.get(99), nullptr);
 }
 
 TEST(LRUCacheTest, ExistingKeyIsUpdated) {
@@ -32,7 +32,7 @@ TEST(LRUCacheTest, ExistingKeyIsUpdated) {
 
     const auto value = cache.get(1);
 
-    ASSERT_TRUE(value.has_value());
+    ASSERT_NE(value, nullptr);
     EXPECT_EQ(*value, "sus");
     EXPECT_EQ(cache.size(), 1);
 }
@@ -42,7 +42,7 @@ TEST(LRUCacheTest, LRUEntryIsEvicted) {
 
     cache.put(1, "one");
     cache.put(2, "two");
-    ASSERT_TRUE(cache.get(1).has_value());
+    ASSERT_NE(cache.get(1), nullptr);
 
     cache.put(3, "three");
 
@@ -56,7 +56,7 @@ TEST(LRUCacheTest, GetPromotesEntryToMRU) {
 
     cache.put(1, "one");
     cache.put(2, "two");
-    ASSERT_TRUE(cache.get(1).has_value());
+    ASSERT_NE(cache.get(1), nullptr);
 
     cache.put(3, "three");
 
@@ -91,7 +91,7 @@ TEST(LRUCacheTest, ZeroCapacityCacheStoresNothing) {
 
     EXPECT_EQ(cache.size(), 0);
     EXPECT_FALSE(cache.contains(1));
-    EXPECT_FALSE(cache.get(1).has_value());
+    EXPECT_EQ(cache.get(1), nullptr);
 }
 
 TEST(LRUCacheTest, CopyConstructorCreatesIndependentCache) {
