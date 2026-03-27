@@ -14,7 +14,7 @@ namespace bmngxn {
 template<typename Key, typename Value, std::size_t NumShards = 128>
 class concurrent_lru_cache {   
 private:
-    // std::hardware_destructive_interference_size might not still cause false-sharing since 
+    // std::hardware_destructive_interference_size might still cause false-sharing since 
     // each shard contains a mutex and an lru_cache, which together are likely larger than 64 bytes, 
     // -> we might want to over-align (128/256 bytes) to be safe and avoid false sharing between shards 
     // that are accessed very frequently

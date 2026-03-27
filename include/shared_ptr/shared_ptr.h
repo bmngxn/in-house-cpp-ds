@@ -8,7 +8,7 @@ namespace bmngxn {
 
 /**
  * The standard shifts the Deleter type responsibility away from the shared_ptr
- * class and onto the polymorphic control block base class.
+ * class onto the polymorphic control block base class.
  */
 
 template <typename T>
@@ -19,7 +19,7 @@ struct default_deleter {
 };
 
 /** 
- * The Abstract Base Control Block
+ * The abstract base control block
  * 
  * The shared_ptr only interacts with this base class and knows nothing about
  * T or the Deleter
@@ -29,12 +29,12 @@ struct control_block_base {
 
     virtual ~control_block_base() = default;
 
-    virtual void dispose() noexcept = 0; // Destroys the mana   ged object
-    virtual void destroy() noexcept = 0; // Deallocates the control block itself
+    virtual void dispose() noexcept = 0; // destroys the managed object
+    virtual void destroy() noexcept = 0; // deallocates the control block itself
 };
 
 /** 
- * The Derived Control Block for standard pointers
+ * The derived control block for standatd ptrs
  * 
  * This moves the Deleter type into the heap allocation, hiding it from 
  * shared_ptr.
@@ -98,7 +98,7 @@ public:
         , control_(nullptr)
     {}
 
-    // constructor can accept an optional custom deleter
+    // constructor can accept an optional custom deleeter
     template <typename Deleter = default_deleter<T>>
     explicit shared_ptr(T* ptr, Deleter deleter = Deleter())
         : ptr_(ptr)
