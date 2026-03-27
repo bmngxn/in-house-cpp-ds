@@ -11,15 +11,19 @@
 
 namespace bmngxn {
 
-template<typename Key, typename Value, std::size_t NumShards = 16>
+template<typename Key, typename Value, std::size_t NumShards = 128>
 class concurrent_lru_cache {   
 private:
-    struct alignas(std::hardware_destructive_interference_size) Shard {
+    // std::hardware_destructive_interference_size might not still cause false-sharing since 
+    // each shard contains a mutex and an lru_cache, which together are likely larger than 64 bytes, 
+    // -> we might want to over-align (128/256 bytes) to be safe and avoid false sharing between shards 
+    // that are accessed very frequently
+    struct alignas(256) Shard {
         std::mutex mutex;
-        lru_cache<Key, Value> lru_cache;
+        lru_cache<Key, Value> cache;
 
         explicit Shard(std::size_t capacity)
-            : lru_cache(capacity)
+            : cache(capacity)
         {}
     };
 
@@ -28,8 +32,9 @@ private:
     std::hash<Key> hasher_;
 
     Shard& get_shard(const Key& key) {
-        std::size_t hash_val = hasher_(key);
-        return *shards_[hash_val % NumShards];
+        std::size_t hash_val = hasher_(key) & (NumShards - 1);
+        // ~ std::size_t hash_val = hasher_(key) % NumShards; (use AND instead of modulus if NumShards is a power of 2 -> fewer cycles)
+        return *shards_[hash_val];
     }
 
 public:
@@ -44,19 +49,24 @@ public:
     void put(const Key& key, const Value& value) {
         Shard& shard = get_shard(key);
         std::lock_guard<std::mutex> lock(shard.mutex);
-        shard.lru_cache.put(key, value);
+        shard.cache.put(key, value);
     }
 
     std::optional<Value> get(const Key& key) {
         Shard& shard = get_shard(key);
         std::lock_guard<std::mutex> lock(shard.mutex);
-        return shard.lru_cache.get(key);
+        
+        Value* ptr = shard.cache.get(key);
+        if (ptr != nullptr) {
+            return *ptr;
+        }
+        return std::nullopt;
     }
 
     bool erase(const Key& key) {
         Shard& shard = get_shard(key);
         std::lock_guard<std::mutex> lock(shard.mutex);
-        return shard.lru_cache.erase(key);
+        return shard.cache.erase(key);
     }
 };
 
