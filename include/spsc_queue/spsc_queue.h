@@ -44,7 +44,7 @@ namespace bmngxn {
             
             // -> bool enqueue(T item) -> pass by value and move
             // but passing T by value still involves constructing and destroying that tmp item param on the stack
-            // perfect forwarding with variadic templates   
+            // perfect forwarding with variadic templates (?)
             // OR: lvalue/rvalue overloads
 
             buffer[current_tail] = std::move(item);
