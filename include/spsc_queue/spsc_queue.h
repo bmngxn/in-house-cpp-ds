@@ -33,30 +33,26 @@ namespace bmngxn {
         spsc_queue& operator=(spsc_queue&&) = delete;
 
         // old was enqueu(const T& item)
+        //         buffer[current_tail] = std::move(item);
+        // bug: we pass in a const ref and now were tryin to move it -> compiler falls back to copy assignments
+        // 
+        // -> bool enqueue(T item) -> pass by value and move
+        // but passing T by value still involves constructing and destroying that tmp item param on the stack
+        // perfect forwarding with variadic templates (?)
+        // OR: lvalue/rvalue overloads (later)
         bool enqueue(T item) noexcept {
+            if (full()) return false;
+
             std::size_t current_tail = tail.load(std::memory_order_relaxed); // producer is the only thead modifying tail -> no need to sync with itself 
-            std::size_t next_tail = (current_tail + 1) & (Capacity - 1);
-
-            if (next_tail == head.load(std::memory_order_acquire)) return false; 
-
-            // buffer[current_tail] = std::move(item);
-            // bug: we pass in a const ref and now were tryin to move it -> compiler falls back to copy assignments
-            
-            // -> bool enqueue(T item) -> pass by value and move
-            // but passing T by value still involves constructing and destroying that tmp item param on the stack
-            // perfect forwarding with variadic templates (?)
-            // OR: lvalue/rvalue overloads
-
             buffer[current_tail] = std::move(item);
-            tail.store(next_tail, std::memory_order_release);
+            tail.store((current_tail + 1) & (Capacity - 1), std::memory_order_release);
             return true;
         }
 
         bool dequeue(T& item) noexcept {
+            if (empty()) return false;
+
             std::size_t current_head = head.load(std::memory_order_relaxed); // sameeeeee
-
-            if (current_head == tail.load(std::memory_order_acquire)) return false; 
-
             item = std::move(buffer[current_head]); 
             head.store((current_head + 1) & (Capacity - 1), std::memory_order_release);
             return true;
