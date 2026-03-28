@@ -20,7 +20,7 @@ namespace bmngxn {
 
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> head_{0};
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> tail_{0}; 
-        alignas(std::hardware_destructive_interference_size) T buffer[Capacity]; 
+        alignas(std::hardware_destructive_interference_size) T buffer_[Capacity]; 
     
         std::size_t next(std::size_t index) const noexcept {
             return (index + 1) & (Capacity - 1);
@@ -37,7 +37,7 @@ namespace bmngxn {
         spsc_queue& operator=(spsc_queue&&) = delete;
 
         // old was enqueu(const T& item)
-        //         buffer[current_tail] = std::move(item);
+        //         buffer_[current_tail] = std::move(item);
         // bug: we pass in a const ref and now were tryin to move it -> compiler falls back to copy assignments
         // 
         // -> bool enqueue(T item) -> pass by value and move
@@ -50,7 +50,7 @@ namespace bmngxn {
 
             if (next_tail == head_.load(std::memory_order_acquire)) return false; 
 
-            buffer[current_tail] = std::move(item);
+            buffer_[current_tail] = std::move(item);
             tail_.store(next_tail, std::memory_order_release);
             return true;
         }
@@ -60,7 +60,7 @@ namespace bmngxn {
 
             if (current_head == tail_.load(std::memory_order_acquire)) return std::nullopt; 
 
-            T popped_item = std::move(buffer[current_head]); 
+            T popped_item = std::move(buffer_[current_head]); 
             head_.store(next(current_head), std::memory_order_release);
             return popped_item;
         }
