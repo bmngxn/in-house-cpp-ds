@@ -2,33 +2,42 @@
 
 #include <atomic>
 #include <optional>
+#include <concepts>
 
 namespace bmngxn {
-    // item in the spsc must be default constructible and move constructible
+    // item in the spsc must be default constructible, move constructible and 
     template<typename T>
-    concept Queueable = std::default_initializable<T> && std::move_constructible<T>;
+    concept Queueable = std::default_initializable<T> && std::move_constructible<T> && std::destructible<T>;
 
     /**
      * Lock-free SPSC queue  using a circular buffer: head_ as read index, tail_ as write index
      * 
-     * the real cap is Capacity - 1 to distinguish between full and empty states
+     * the real cap is capacity_ - 1 to distinguish between full and empty states
      */
     template<Queueable T, std::size_t N>
     class spsc_queue {
     private:
-        static constexpr std::size_t Capacity = 1 << N;
+        static constexpr std::size_t capacity_ = 1 << N;
 
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> head_{0};
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> tail_{0}; 
-        alignas(std::hardware_destructive_interference_size) T buffer_[Capacity]; 
+        alignas(std::hardware_destructive_interference_size) T buffer_[capacity_]; 
     
         std::size_t next(std::size_t index) const noexcept {
-            return (index + 1) & (Capacity - 1);
+            return (index + 1) & (capacity_ - 1);
         }
     
     public:
-
         spsc_queue() = default;
+
+        ~spsc_queue() noexcept {
+            std::size_t current = head_.load();
+            std::size_t end = tail_.load();
+            while (current != end) {
+                buffer_[current].~T();
+                current = next(current);
+            }
+        }
 
         spsc_queue(const spsc_queue&) = delete;
         spsc_queue& operator=(const spsc_queue&) = delete;
@@ -75,7 +84,13 @@ namespace bmngxn {
         }   
 
         std::size_t capacity() const noexcept {
-            return Capacity - 1;
+            return capacity_ - 1;
+        }
+
+        size_t size() const noexcept {
+            std::size_t tail = tail_.load(std::memory_order_acquire);
+            std::size_t head = head_.load(std::memory_order_acquire);
+            return (tail - head) & (capacity_ - 1);
         }
 
     };
