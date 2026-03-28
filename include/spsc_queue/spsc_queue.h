@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include <mutex>
+#include <optional>
 
 namespace bmngxn {
     // item in the spsc must be default constructible and move constructible
@@ -41,21 +41,24 @@ namespace bmngxn {
         // perfect forwarding with variadic templates (?)
         // OR: lvalue/rvalue overloads (later)
         bool enqueue(T item) noexcept {
-            if (full()) return false;
+            std::size_t current_tail = tail.load(std::memory_order_relaxed); // producer is the only thread modifying tail -> no need to sync with itself
+            std::size_t next_tail = (current_tail + 1) & (Capacity - 1);
 
-            std::size_t current_tail = tail.load(std::memory_order_relaxed); // producer is the only thead modifying tail -> no need to sync with itself 
+            if (next_tail == head.load(std::memory_order_acquire)) return false; 
+
             buffer[current_tail] = std::move(item);
-            tail.store((current_tail + 1) & (Capacity - 1), std::memory_order_release);
+            tail.store(next_tail, std::memory_order_release);
             return true;
         }
 
-        bool dequeue(T& item) noexcept {
-            if (empty()) return false;
-
+        std::optional<T> dequeue() noexcept {
             std::size_t current_head = head.load(std::memory_order_relaxed); // sameeeeee
-            item = std::move(buffer[current_head]); 
+
+            if (current_head == tail.load(std::memory_order_acquire)) return std::nullopt; 
+
+            T popped_item = std::move(buffer[current_head]); 
             head.store((current_head + 1) & (Capacity - 1), std::memory_order_release);
-            return true;
+            return popped_item;
         }
 
         bool empty() const noexcept {
