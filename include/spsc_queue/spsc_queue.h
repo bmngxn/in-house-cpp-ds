@@ -5,9 +5,9 @@
 #include <concepts>
 
 namespace bmngxn {
-    // item in the spsc must be default constructible, move constructible and 
+    // items in the spsc must be default constructible (for the circular buffer), move constructible (for efficient enqueue/dequeue)
     template<typename T>
-    concept Queueable = std::default_initializable<T> && std::move_constructible<T> && std::destructible<T>;
+    concept Queueable = std::default_initializable<T> && std::move_constructible<T>;
 
     /**
      * Lock-free SPSC queue  using a circular buffer: head_ as read index, tail_ as write index
@@ -21,7 +21,7 @@ namespace bmngxn {
 
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> head_{0};
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> tail_{0}; 
-        alignas(std::hardware_destructive_interference_size) T buffer_[capacity_]; 
+        T buffer_[capacity_]; 
     
         std::size_t next(std::size_t index) const noexcept {
             return (index + 1) & (capacity_ - 1);
@@ -30,14 +30,7 @@ namespace bmngxn {
     public:
         spsc_queue() = default;
 
-        ~spsc_queue() noexcept {
-            std::size_t current = head_.load();
-            std::size_t end = tail_.load();
-            while (current != end) {
-                buffer_[current].~T();
-                current = next(current);
-            }
-        }
+        ~spsc_queue() =  default;
 
         spsc_queue(const spsc_queue&) = delete;
         spsc_queue& operator=(const spsc_queue&) = delete;
