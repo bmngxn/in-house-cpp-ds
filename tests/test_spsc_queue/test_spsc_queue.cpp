@@ -1,9 +1,57 @@
 #include "spsc_queue/spsc_queue.h"
 
 #include <gtest/gtest.h>
-#include <thread>
-#include <vector>
 #include <chrono>
+#include <thread>
+#include <type_traits>
+#include <vector>
+
+// verify which enqueue / emplace method are used
+struct OperationSpy {
+    static int copies;
+    static int moves;
+    static int copy_assignments;
+    static int move_assignments;
+    static int regular_constructs;
+
+    static void reset() {
+        copies = 0;
+        moves = 0;
+        copy_assignments = 0;
+        move_assignments = 0;
+        regular_constructs = 0;
+    }
+
+    OperationSpy() = default;
+
+    OperationSpy(int, double) {
+        ++regular_constructs;
+    }
+
+    OperationSpy(const OperationSpy&) {
+        ++copies;
+    }
+
+    OperationSpy(OperationSpy&&) noexcept {
+        ++moves;
+    }
+
+    OperationSpy& operator=(const OperationSpy&) {
+        ++copy_assignments;
+        return *this;
+    }
+
+    OperationSpy& operator=(OperationSpy&&) noexcept {
+        ++move_assignments;
+        return *this;
+    }
+};
+
+int OperationSpy::copies = 0;
+int OperationSpy::moves = 0;
+int OperationSpy::copy_assignments = 0;
+int OperationSpy::move_assignments = 0;
+int OperationSpy::regular_constructs = 0;
 
 class SPSCQueueTest : public ::testing::Test {
 protected:
@@ -80,7 +128,6 @@ TEST_F(SPSCQueueTest, Wraparound) {
 }
 
 TEST_F(SPSCQueueTest, InterleavedOperations) {
-    // Enqueue 3
     queue.enqueue(1);
     queue.enqueue(2);
     queue.enqueue(3);
@@ -194,4 +241,42 @@ TEST_F(SPSCQueueTest, DifferentCapacities) {
         EXPECT_TRUE(large_queue.enqueue(i));
     }
     EXPECT_FALSE(large_queue.enqueue(999));
+}
+
+TEST_F(SPSCQueueTest, EnqueueLvalueUsesCopyAssignmentPath) {
+    OperationSpy::reset();
+    bmngxn::spsc_queue<OperationSpy, 2> spy_queue;
+
+    OperationSpy spy;
+
+    EXPECT_TRUE(spy_queue.enqueue(spy));
+    EXPECT_EQ(OperationSpy::copies, 0);
+    EXPECT_EQ(OperationSpy::moves, 0);
+    EXPECT_EQ(OperationSpy::copy_assignments, 1);
+    EXPECT_EQ(OperationSpy::move_assignments, 0);
+}
+
+TEST_F(SPSCQueueTest, EnqueueRvalueUsesMoveAssignmentPath) {
+    OperationSpy::reset();
+    bmngxn::spsc_queue<OperationSpy, 2> spy_queue;
+
+    OperationSpy spy;
+
+    EXPECT_TRUE(spy_queue.enqueue(std::move(spy)));
+    EXPECT_EQ(OperationSpy::copies, 0);
+    EXPECT_EQ(OperationSpy::moves, 0);
+    EXPECT_EQ(OperationSpy::copy_assignments, 0);
+    EXPECT_EQ(OperationSpy::move_assignments, 1);
+}
+
+TEST_F(SPSCQueueTest, EmplaceBuildsTemporaryThenMoveAssignsIntoSlot) {
+    OperationSpy::reset();
+    bmngxn::spsc_queue<OperationSpy, 2> spy_queue;
+
+    EXPECT_TRUE(spy_queue.emplace(42, 3.14));
+    EXPECT_EQ(OperationSpy::copies, 0);
+    EXPECT_EQ(OperationSpy::moves, 0);
+    EXPECT_EQ(OperationSpy::copy_assignments, 0);
+    EXPECT_EQ(OperationSpy::move_assignments, 1);
+    EXPECT_EQ(OperationSpy::regular_constructs, 1);
 }
