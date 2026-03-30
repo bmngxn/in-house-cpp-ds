@@ -21,8 +21,8 @@ namespace bmngxn {
 
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> head_{0};
         alignas(std::hardware_destructive_interference_size) std::atomic<std::size_t> tail_{0}; 
-        T buffer_[capacity_]; 
-    
+        alignas(std::hardware_destructive_interference_size) T buffer_[capacity_]; 
+        
         std::size_t next(std::size_t index) const noexcept {
             return (index + 1) & (capacity_ - 1);
         }
@@ -46,16 +46,46 @@ namespace bmngxn {
         // but passing T by value still involves constructing and destroying that tmp item param on the stack
         // perfect forwarding with variadic templates (?)
         // OR: lvalue/rvalue overloads (later)
-        bool enqueue(T item) noexcept {
+        bool enqueue(const T& item) noexcept {
             std::size_t current_tail = tail_.load(std::memory_order_relaxed); // producer is the only thread modifying tail_ -> no need to sync with itself
             std::size_t next_tail = next(current_tail);
 
             if (next_tail == head_.load(std::memory_order_acquire)) return false; 
 
-            buffer_[current_tail] = std::move(item);
+            buffer_[current_tail] = item;
             tail_.store(next_tail, std::memory_order_release);
+
+
             return true;
         }
+
+        bool enqueue(T&& item) noexcept {
+            std::size_t current_tail = tail_.load(std::memory_order_relaxed);
+            std::size_t next_tail = next(current_tail);
+
+            if (next_tail == head_.load(std::memory_order_acquire)) return false;
+
+            buffer_[current_tail] = std::move(item);
+            tail_.store(next_tail, std::memory_order_release);
+
+
+            return true;
+        }
+
+        template <typename... Args>
+        bool emplace(Args&&... args) noexcept {
+            std::size_t current_tail = tail_.load(std::memory_order_relaxed);
+            std::size_t next_tail = next(current_tail);
+
+            if (next_tail == head_.load(std::memory_order_acquire)) return false; 
+
+            buffer_[current_tail] = T(std::forward<Args>(args)...);
+            tail_.store(next_tail, std::memory_order_release);
+
+            return true;
+        }
+
+
 
         std::optional<T> dequeue() noexcept {
             std::size_t current_head = head_.load(std::memory_order_relaxed); // sameeeeee
@@ -65,6 +95,17 @@ namespace bmngxn {
             T popped_item = std::move(buffer_[current_head]); 
             head_.store(next(current_head), std::memory_order_release);
             return popped_item;
+        }
+
+        bool dequeue(T& item) noexcept {
+            std::size_t current_head = head_.load(std::memory_order_relaxed);
+            
+            if (current_head == tail_.load(std::memory_order_acquire)) return false; 
+
+            item = std::move(buffer_[current_head]); 
+            head_.store(next(current_head), std::memory_order_release);
+
+            return true;
         }
 
         bool empty() const noexcept {
